@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
@@ -18,13 +19,38 @@ async function run() {
     try {
         await client.connect();
         const productCollection = client.db('warehouseManagement').collection('product');
+        const orderCollection = client.db('warehouseManagement').collection('order');
 
+        //AUTH
+        app.post('/login', async (req, res) => {
+            const user = req.body;
+            const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: '1d'
+            });
+            res.send({ accessToken });
+
+        })
         app.get('/product', async (req, res) => {
+            // const email = req.query.email;
             const query = {};
             const cursor = productCollection.find(query);
             const products = await cursor.toArray();
             res.send(products);
         });
+        app.get('/addproduct', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const cursor = productCollection.find(query);
+            const products = await cursor.toArray();
+            res.send(products);
+        });
+        app.post('/addproduct', async (req, res) => {
+            const newProduct = req.body;
+            console.log("Adding new user");
+            const result = await productCollection.insertOne(newProduct);
+            res.send(result);
+
+        })
         app.get('/product/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -39,12 +65,37 @@ async function run() {
             res.send(result);
         });
 
+        //Order Coolection
+        app.post('/order', async (req, res) => {
+            const order = req.body;
+            const result = await orderCollection.insertOne(order);
+            res.send(result);
+        })
+
+
         //DELETE
         app.delete('/product/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await productCollection.deleteOne(query);
             res.send(result);
+        });
+
+        //PUT
+        app.put('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            const updatedQuantity = req.body;
+            console.log(updatedQuantity);
+            const filter = { _id: ObjectId(id) };
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    quantity: updatedQuantity.newQuantity,
+                }
+            }
+            const result = await productCollection.updateOne(filter, updatedDoc, options);
+            res.send(result);
+
         });
 
 
