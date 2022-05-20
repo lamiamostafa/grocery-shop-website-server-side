@@ -11,6 +11,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    console.log('inside verifyJwt', authHeader);
+    next();
+
+
+}
+
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.jsfbg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
@@ -19,7 +27,7 @@ async function run() {
     try {
         await client.connect();
         const productCollection = client.db('warehouseManagement').collection('product');
-        const orderCollection = client.db('warehouseManagement').collection('order');
+
 
         //AUTH
         app.post('/login', async (req, res) => {
@@ -30,16 +38,24 @@ async function run() {
             res.send({ accessToken });
 
         })
-        app.get('/product', async (req, res) => {
-            // const email = req.query.email;
+
+        app.get('/product', verifyJWT, async (req, res) => {
             const query = {};
             const cursor = productCollection.find(query);
             const products = await cursor.toArray();
             res.send(products);
+
         });
-        app.get('/addproduct', async (req, res) => {
+        app.get('/myitem', verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
+            const cursor = productCollection.find(query);
+            const products = await cursor.toArray();
+            res.send(products);
+
+        });
+        app.get('/addproduct', async (req, res) => {
+            const query = {};
             const cursor = productCollection.find(query);
             const products = await cursor.toArray();
             res.send(products);
@@ -64,14 +80,6 @@ async function run() {
             const result = await productCollection.insertOne(newProduct);
             res.send(result);
         });
-
-        //Order Coolection
-        app.post('/order', async (req, res) => {
-            const order = req.body;
-            const result = await orderCollection.insertOne(order);
-            res.send(result);
-        })
-
 
         //DELETE
         app.delete('/product/:id', async (req, res) => {
